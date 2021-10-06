@@ -80,4 +80,23 @@ router.post('/update', (req, res) => {
   });
 })
 
+router.get('/login', (req, res) => {
+  res.render('login');
+})
+
+router.post('/submit', (req, res) => {
+  // 1. 先看有没有这个账号
+  readFile({
+    callback: (data) => {
+      const dataBase = JSON.parse(data);
+      const { username, password } = req.body;
+      const user = dataBase.find(d => d.name === username);
+      if (!user) return res.status(401).send({ error: '没有改账户' });
+      // 2. 这个账号和密码匹不匹配
+      if (password !== user.password) return res.status(401).send({ error: '密码不正确' });
+      res.redirect('/');
+    }
+  })
+})
+
 module.exports = router;
