@@ -14,6 +14,8 @@ app.set('view engine', 'html');
 
 // 配置静态资源处理中间件
 app.use('/static', express.static('static'));
+
+// 配置post的body请求体
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
