@@ -22,8 +22,8 @@
 </head>
 <body>
   <form action="/submit" method="post">
-    <input type="text" placeholder="请输入用户名" name="username">
-    <input type="password" placeholder="请输入密码" name="password">
+    <input type="text" placeholder="请输入用户名" name="name" value="{{name}}" required >
+    <input type="password" placeholder="请输入密码" name="password" value="{{password}}" required>
     <button>登录</button>
   </form>
 </body>
