@@ -1,5 +1,6 @@
 // 创建服务器
 const express = require('express');
+const session = require('express-session');
 const path = require('path');
 const router = require('./router');
 
@@ -19,9 +20,26 @@ app.use('/static', express.static('static'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// 配置session
+app.use(session({
+  secret: 'keyboard cat', // 密钥
+  resave: false,
+  saveUninitialized: true
+}))
+
+// 配置cookie认证
+app.use((req, res, next) => {
+  // 登录页 or 有session 通过当前session校验
+  if (['/login', '/submit'].includes(req.url) || req.session.user) {
+    next();
+  } else {
+    res.status(401).send('<script>alert("账户或者密码错误"); location="/login"</script>')
+  }
+})
+
 // 配置路由
 app.use(router);
 
 app.listen(8083, () => {
-  console.log('服务器开启成功, 点击访问"http://localhost:8083"');
+  console.log('服务器开启成功, 点击访问"http://localhost:8083/login"');
 });

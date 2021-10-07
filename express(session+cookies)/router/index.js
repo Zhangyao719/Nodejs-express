@@ -80,4 +80,27 @@ router.post('/update', (req, res) => {
   });
 })
 
+router.get('/login', (req, res) => {
+  res.render('login', req.session && req.session.user || {});
+})
+
+router.post('/submit', (req, res) => {
+  // 1. 先从数据库中查询有无此人
+  readFile({
+    callback: (data) => {
+      const dataBase = JSON.parse(data);
+      // 从表单中获取user信息
+      const { name, password } = req.body;
+      const user = dataBase.find(d => d.name === name && d.password === password);
+      // 如果查询到此人的信息, 那就将user信息放置于session中(下次请求就会携带上cookie)
+      if (user) {
+        req.session.user = user;
+        return res.redirect('/');
+      } else {
+        return res.status(401).send('<script>alert("账户或者密码错误"); location="/login"</script>')
+      };
+    }
+  })
+})
+
 module.exports = router;
