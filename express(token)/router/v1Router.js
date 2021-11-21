@@ -20,7 +20,8 @@ v1Router.post('/login', (req, res) => {
   res.send({
     status: 200,
     message: 'success',
-    token,
+    // 免去前端拼接Bearer [token]的麻烦
+    token: 'Bearer ' + token,
   })
 })
 
