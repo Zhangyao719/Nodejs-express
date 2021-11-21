@@ -58,29 +58,33 @@ JWT 的三个组成部分，从前到后分别是 Header、Payload、Signature�
 
 ### jwt的使用方式
 
-客户端收到服务器返回的 JWT 之后，通常会将它储存在` localStorage` 或` sessionStorage` 中。
+- 前端
 
-此后，客户端每次与服务器通信，都要带上这个 JWT 的字符串，从而进行身份认证。推荐的做法是**把** **JWT** **放在** **HTTP** **请求头的** **Authorization** **字段中**，格式如下：
+1. 客户端收到服务器返回的 JWT 之后，通常会将它储存在` localStorage` 或` sessionStorage` 中。
 
+2. 此后，客户端每次与服务器通信，都要带上这个 JWT 的字符串，从而进行身份认证。推荐的做法是**把** **JWT** **放在** **HTTP** **请求头的** **`Authorization`** **字段中**，格式如下：
 
+   ```js
+   Authorization: Bearer <token>
+   ```
 
-![image-20200602222028769](images/image-20200602222028769.png)
+- 后端
+  1. 登录成功, 生成token, 返回给浏览器
+  2. 所有的接口中. 判断请求头是否携带了token(登录页面除外)
 
 ## 在express中使用jwt
 
 运行如下命令，安装如下两个 JWT 相关的包：
 
-![image-20200602215447213](images/image-20200602215447213.png)
+```bash
+npm i jsonwebtoken express-jwt
+```
 
 其中：
 
-+ **jsonwebtoken** 用于**生成** **JWT** **字符串**
++ [jsonwebtoken](https://www.npmjs.com/package/jsonwebtoken) 用于**生成** **JWT** **字符串**
 
-+ **express-jwt** 用于**将** **JWT** **字符串解析还原成** **JSON** **对象**
-
-### 导入jwt的包
-
-![image-20200602215523080](images/image-20200602215523080.png)
++ [express-jwt](https://www.npmjs.com/package/express-jwt) 用于**将** **JWT** **字符串解析还原成** **JSON** **对象**
 
 ### 定义secret密钥
 
@@ -90,47 +94,129 @@ JWT 的三个组成部分，从前到后分别是 Header、Payload、Signature�
 
 ②当把 JWT 字符串解析还原成 JSON 对象的时候，需要使用 secret 密钥进行解密
 
-![image-20200602215556535](images/image-20200602215556535.png)
+```js
+const SECRET_KEY = 'login2021'
+```
 
-
-
-### **在登录成功****后生成** **JWT** **字符串**
+### 在登录成功后生成 JWT 字符串
 
 调用 **jsonwebtoken** 包提供的 **sign()** 方法，将用户的信息加密成 JWT 字符串，响应给客户端：
 
-![image-20200602215617524](images/image-20200602215617524.png)	
+```js
+// v1Router.js
+const v1Router = express.Router()
+const jwt = require('jsonwebtoken')
+const SECRET_KEY = 'login2021'
 
+// 登录接口
+v1Router.post('/login', (req, res) => {
+  // 校验密码....(此处省略), 如果校验成功, 生成jwt
+  // 参数1: 生成到token中的信息
+  // 参数2: 密钥
+  // 参数3: token的有效时间: 60, "2 days", "10h", "7d"
+  const token = jwt.sign(
+    { user: { name: 'zs', password: 123 } },
+    SECRET_KEY,
+    { expiresIn: '3h' }
+  )
+  console.log('🚀 → token', token)
+  res.send({
+    status: 200,
+    message: 'login success!',
+    token,
+  })
+})	
+```
 
+### 解析 JWT字符串 还原为JSON对象
 
-### **将** **JWT** **字符串****还原为** **JSON** **对象**
+客户端每次在访问那些有权限接口的时候，都需要主动通过**请求头中的 `Authorization` 字段**，将 Token 字符串发送到服务器进行身份认证。
 
-客户端每次在访问那些有权限接口的时候，都需要主动通过**请求头中的** **Authorization** **字段**，将 Token 字符串发送到服务器进行身份认证。
+此时，服务器可以通过 **express-jwt** 这个中间件，自动将客户端发送过来的 Token 解析还原成 JSON 对象：
 
-此时，服务器可以通过 **express-****jwt** 这个中间件，自动将客户端发送过来的 Token 解析还原成 JSON 对象：
+```js
+// app.js
+// 导入校验token的模块, 解析JWT字符串, 还原成 JSON 对象 的模块
+const parseJwt = require('express-jwt')
+const SECRET_KEY = 'login2021' // 与生成token的密钥要一致!
 
-![image-20200602215642087](images/image-20200602215642087.png)
+// 1. 使用中间件解析token
+// 2. 使用 .unless 排除无需校验的路由(比如: 登录)
+app.use(
+  parseJwt({
+      sectet: SECRET_KEY,
+      algorithms: ['HS256'], // 使用何种加密算法解析
+  })
+    .unless({ path: ['/v1/login'] })
+)
+```
 
-
-
-### **使用** **req.user** **获取用户信息**
+### 使用req.user 获取用户信息
 
 当 express-jwt 这个中间件配置成功之后，即可在那些有权限的接口中，使用 **req.user** 对象，来访问从 JWT 字符串中解析出来的用户信息了，示例代码如下：
 
 ![image-20200602215712499](images/image-20200602215712499.png)
 
-### **捕获解析** **JWT** **失败后产生的错误**
+### 错误中间件
 
-当使用 express-jwt 解析 Token 字符串时，如果客户端发送过来的 Token 字符串**过期**或**不合法**，会产生一个**解析失败**的错误，影响项目的正常运行。我们可以通过 **Express** **的错误中间件**，捕获这个错误并进行相关的处理，示例代码如下：
-
-![image-20200602215732387](images/image-20200602215732387.png)
-
-
+> 用来统一处理捕获的错误
+>
+> 当使用 express-jwt 解析 Token 字符串时，如果客户端发送过来的 Token 字符串**过期**或**不合法**，会产生一个**解析失败**的错误，影响项目的正常运行。我们可以通过 **Express** **的错误中间件**，捕获这个错误并进行相关的处理，示例代码如下：
 
 ```js
-jQuery.ajaxSetup({
-	beforeSend: function(xhr) {
-		xhr.setRequestHeader('Authorization', localStorage.getItem('token'))
-	}
+// 定义错误中间件
+// middleware/errorhandler.js
+function errorHandler(err, req, res, next) {
+  console.log(err, err.name);
+  let code = 500;
+  let message = 'Internal Server Error';
+  // token解析的错误
+  if (err.name === 'UnauthorizedError') {
+    code = 401
+    message = 'no login'
+  }
+  res.statusCode = code;
+  res.send({
+    status: code,
+    message,
+  })
+}
+
+module.exports = errorHandler
+```
+
+```js
+// app.js
+const errorhandler = require('middleware')
+
+// 错误中间件写在最后
+app.use(errorhandler)
+```
+
+### 前端如何使用token
+
+1. 保存token
+
+```js
+const token = this.axios.post('v1/login', {...});
+localStorage.setItem('token', token);
+```
+
+2. 请求时 携带token
+
+```js
+const axios = require('axios').default;
+const instance = axios.create({
+    baseURL: 'http://localhost:8001/v1',
+});
+
+// 可在axios拦截中统一处理
+instance.interceptors.request.use((config) => {
+    config.headers = {
+        ...config.headers,
+        // 如果后端没有添加 'Bearer ', 则需要前端自己拼接
+        Authorization: localStorage.getItem('token'),
+    }
 })
 ```
 
